@@ -65,7 +65,7 @@ func serveWITRequest(rw http.ResponseWriter, req *http.Request) {
 	reqPath := req.URL.Path
 	if req.Header.Get(middleware.RequestIDHeader) == "" {
 		log.Error(nil, nil, "%s header is missing in request '%s'", middleware.RequestIDHeader, reqPath)
-		rw.WriteHeader(500)
+		rw.WriteHeader(400)
 		return
 	}
 	if reqPath == "/api/search/codebases" {

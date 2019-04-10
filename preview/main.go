@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/fabric8-services/fabric8-notification/auth"
 	authapi "github.com/fabric8-services/fabric8-notification/auth/api"
@@ -36,23 +37,22 @@ func main() {
 		templateName string
 	}
 
-	var testdata []data
-	testdata = append(testdata, data{"de4871ce-0bfd-4b4b-aee2-e02427f4e38b", string(types.WorkitemCreate)})
-	testdata = append(testdata, data{"43024450-fe8c-4082-8828-88512cebfdb0", string(types.WorkitemCreate)})
-	testdata = append(testdata, data{"3a331aa3-6423-4fd7-85e4-95d7932b168c", string(types.WorkitemCreate)})
-	testdata = append(testdata, data{"d85e19a1-f4aa-486e-a8fe-3211cac9b68f", string(types.WorkitemCreate)})
-	testdata = append(testdata, data{"43024450-fe8c-4082-8828-88512cebfdb0", string(types.WorkitemUpdate)})
-
-	testdata = append(testdata, data{"d28f8344-4956-497a-b43b-7f217087a931", string(types.CommentCreate)})
-	testdata = append(testdata, data{"51d968b1-b9e5-4ec1-884a-ff256902c753", string(types.CommentCreate)})
-	testdata = append(testdata, data{"51d968b1-b9e5-4ec1-884a-ff256902c753", string(types.CommentUpdate)})
-	testdata = append(testdata, data{"3383826c-51e4-401b-9ccd-b898f7e2397d", string(types.UserEmailUpdate)})
-	testdata = append(testdata, data{"81d1c3bf-fcf2-4c4e-9d12-f9e5c15fb9ab", string(types.InvitationTeamNoorg)})
-	testdata = append(testdata, data{"297f2037-72e9-42b3-a5fc-76d843877163", string(types.InvitationSpaceNoorg)})
-
-	testdata = append(testdata, data{"0a9c6814-462e-411c-8560-d74297bf1ceb", string(types.AnalyticsNotifyCVE)})
-	testdata = append(testdata, data{"7dd737ed-c0fa-4f2f-9a3a-ed43778bb7fe", string(types.AnalyticsNotifyVersion)})
-
+	testdata := []data{
+		{"de4871ce-0bfd-4b4b-aee2-e02427f4e38b", string(types.WorkitemCreate)},
+		{"43024450-fe8c-4082-8828-88512cebfdb0", string(types.WorkitemCreate)},
+		{"3a331aa3-6423-4fd7-85e4-95d7932b168c", string(types.WorkitemCreate)},
+		{"d85e19a1-f4aa-486e-a8fe-3211cac9b68f", string(types.WorkitemCreate)},
+		{"43024450-fe8c-4082-8828-88512cebfdb0", string(types.WorkitemUpdate)},
+		{"d28f8344-4956-497a-b43b-7f217087a931", string(types.CommentCreate)},
+		{"51d968b1-b9e5-4ec1-884a-ff256902c753", string(types.CommentCreate)},
+		{"51d968b1-b9e5-4ec1-884a-ff256902c753", string(types.CommentUpdate)},
+		{"3383826c-51e4-401b-9ccd-b898f7e2397d", string(types.UserEmailUpdate)},
+		{"f3a184bf-963b-448a-86b4-307ae455223b", string(types.UserDeactivation)},
+		{"81d1c3bf-fcf2-4c4e-9d12-f9e5c15fb9ab", string(types.InvitationTeamNoorg)},
+		{"297f2037-72e9-42b3-a5fc-76d843877163", string(types.InvitationSpaceNoorg)},
+		{"0a9c6814-462e-411c-8560-d74297bf1ceb", string(types.AnalyticsNotifyCVE)},
+		{"7dd737ed-c0fa-4f2f-9a3a-ed43778bb7fe", string(types.AnalyticsNotifyVersion)},
+	}
 	fmt.Println("Generating test templates..")
 	fmt.Println("")
 
@@ -67,7 +67,7 @@ func main() {
 func generate(authClient *authapi.Client, c *api.Client, id, tmplName string) error {
 	reg := template.AssetRegistry{}
 
-	temp, exist := reg.Get(tmplName)
+	tmpl, exist := reg.Get(tmplName)
 	if !exist {
 		return fmt.Errorf("template %v not found", tmplName)
 	}
@@ -84,6 +84,11 @@ func generate(authClient *authapi.Client, c *api.Client, id, tmplName string) er
 		_, vars, err = collector.WorkItem(OSIOctx, authClient, c, nil, wiID)
 	} else if strings.HasPrefix(tmplName, "comment") {
 		_, vars, err = collector.Comment(OSIOctx, authClient, c, nil, wiID)
+	} else if strings.HasPrefix(tmplName, "user.deactivation") {
+		vars["custom"] = map[string]interface{}{
+			"userEmail":  "user@example.com",
+			"expiryDate": time.Now().Add(7 * 24 * time.Hour).Format("Jan 2, 2006"),
+		}
 	} else if strings.HasPrefix(tmplName, "user") {
 		_, vars, err = collector.User(context.Background(), authClient, wiID)
 		vars["custom"] = map[string]interface{}{
@@ -126,7 +131,7 @@ func generate(authClient *authapi.Client, c *api.Client, id, tmplName string) er
 	if err != nil {
 		return err
 	}
-	subject, body, headers, err := temp.Render(addGlobalVars(vars))
+	subject, body, headers, err := tmpl.Render(addGlobalVars(vars))
 	if err != nil {
 		return err
 	}
